@@ -50,7 +50,6 @@ function getBodyFromMode(mode, solar){
 }
 
 function getSolarColor(mode, solar, startOfDay, endOfDay){
-    console.log(mode, solar.sunrise)
 
     var solar_stops = [
         {time: startOfDay, hex: '#003'},
@@ -74,7 +73,6 @@ function getSolarColor(mode, solar, startOfDay, endOfDay){
             colorAlpha = currDuration / total;
             c1 = new Color(solar_stops[i].hex);
             c2 = new Color(solar_stops[i+1].hex);
-            console.log(c1, c2, colorAlpha)
 
             var rgbComponents = [
                 (1 - colorAlpha) * c1.red + colorAlpha * c2.red, 
