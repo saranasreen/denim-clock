@@ -18,5 +18,5 @@ function updateTime(){
 
     var endOfDay = new Date(NY_now);
     endOfDay.setUTCHours(27, 59, 59, 999);
-    return [NY_now, startOfDay, endOfDay]
+    return [startOfDay, NY_now, endOfDay]
 }

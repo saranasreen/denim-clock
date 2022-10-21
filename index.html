@@ -21,6 +21,8 @@ canvas[resize] {
 <script type="text/javascript" src="js/init.js"></script>
 <script type="text/javascript" src="js/alpha.js"></script>
 <script type="text/javascript" src="js/time.js"></script>
+<script type="text/javascript" src="js/style_wallpaper.js"></script>
+<script type="text/javascript" src="js/cell.js"></script>
 </head>
 <body>
     <section id="controls">
@@ -49,6 +51,21 @@ canvas[resize] {
         paper.install(window);
         window.onload = function() {
             paper.setup('myCanvas');
+
+            /*--SCREEN OPTIONS--*/
+    
+            var options = {
+                "gameboy":[0.976, 0.976],
+                "high": [0.995, 0.989],
+                "normal_1": [0.996, 0.977],
+                "normal": [0.99, 0.983],
+                "main_width": 3/4,
+                "fade_rate": "slow"
+            }
+    
+            /*-- SET RESOLUTION--*/
+            var resolution = options["normal"];
+
             /*--SET COORDINATES FOR TRAFFIC DENSITY DATA--*/
 		    var coordinates = [40.7276, -73.9287];
 
@@ -77,19 +94,35 @@ canvas[resize] {
             }
 
             /*--BODY COLOR--*/
-            var body = getBodyFromMode(solar_modes[mode], solar)
-            var bg_rect = update_bg_gradient(body)
+            var bgColor = getBgColor(solar_modes[mode], solar)
+            var bg_rect = updateBgGradient(bgColor)
 
             var solarColor = getSolarColor(solar_modes[mode], solar, startOfDay, endOfDay)
-            var solar_rect = update_solar(solarColor)
+            var solar_rect = updateSolar(solarColor)
+
+            // denim wallpaper background size and position
+            var frame_size = new Size(view.bounds.width, view.bounds.height)
+            var frame_top_left = new Point(view.bounds.x, view.bounds.y)
             
+            console.log(bgColor)
+
+            var tile = updateTwill(frame_top_left, frame_size, resolution, bgColor)
+
             function modeSelect(){
                 mode = this.value;
-                body = getBodyFromMode(solar_modes[mode], solar)
-                bg_rect = update_bg_gradient(body)
+                [NY_now, startOfDay, endOfDay] = updateTime()
+                solar = SunCalc.getTimes(NY_now, coordinates[0], coordinates[1]);
+                solar_modes.time = NY_now
 
-                var solarColor = getSolarColor(solar_modes[mode], solar, startOfDay, endOfDay)
-                var solar_rect = update_solar(solarColor)
+                bgColor = getBgColor(solar_modes[mode], solar)
+                bg_rect = updateBgGradient(bgColor)
+
+                tile = updateTwill(frame_top_left, frame_size, resolution, bgColor)
+
+                solarColor = getSolarColor(solar_modes[mode], solar, startOfDay, endOfDay)
+                solar_rect = updateSolar(solarColor)
+
+                
             }
             document.getElementById("modeInput").onchange = modeSelect
         }

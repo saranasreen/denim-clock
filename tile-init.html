@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style type="text/css">
+	html,
+body {
+    height: 100%;
+}
+
+/* Scale canvas with resize attribute to full size */
+canvas[resize] {
+    width: 100%;
+    height: 100%;
+    background-color: "f8f8f8";
+}
+</style>
+<!-- Load the Paper.js library -->
+<script type="text/javascript" src="node_modules/paper/dist/paper-full.js"></script>
+<!-- Define inlined PaperScript associate it with myCanvas -->
+<script data-main="node_modules/suncalc/suncalc" src="node_modules/requirejs/require.js"></script>
+<script type="text/javascript" src="js/time.js"></script>
+<script type="text/javascript" src="js/color.js"></script>
+<script type="text/javascript" src="js/draw.js"></script>
+<script type="text/javascript" src="js/cell.js"></script>
+<script type="text/javascript" src="js/fetches.js"></script>
+<script type="text/javascript" src="js/gradient.js"></script>
+<script type="text/javascript" src="js/crt.js"></script>
+<script type="text/javascript" src="js/car.js"></script>
+<script type="text/javascript" src="js/traffic.js"></script>
+<script type="text/javascript" src="js/generate.js"></script>
+
+</head>
+<body>
+    <section id="controls">
+        <div id="inputelements">
+            <div class="row">
+                <span class="inputfield">
+                    <label for="modeInput">Mode</label>
+                    <select id="modeInput">
+                        <option value="slider">slider</option>
+                        <option value="time">time</option>
+                    </select>
+                </span>
+                <span class="inputfield">
+                    <label for="directionInput">Direction</label>
+                    <select id="directionInput">
+                        <option value="NS">vertical</option>
+                        <option value="EW">horizontal</option>
+                    </select>
+                </span>
+                <span class="inputfield">
+                    <label for="sideInput">Side</label>
+                    <select id="sideInput">
+                        <option value="front">front</option>
+                        <option value="back">back</option>
+                    </select>
+                </span>
+                <span class="inputfield">
+                    <label for="tempInput">Temperature</label>
+                    <select id="tempInput">
+                        <option value="false">Off</option>
+                        <option value="true">On</option>
+                        
+
+                    </select>
+                </span>
+                <span class="inputfield">
+                    <label for="weaveInput">Weave</label>
+                    <select id="weaveInput">
+                        <option value="diamond">Diamond</option>
+                        <option value="denim">Denim</option>
+
+                    </select>
+                </span>
+                
+            </div>
+        </div>
+        <div class="slidecontainer">
+            <label for="timeRange">Time of Day</label>
+            <input type="range" min="0" max="100" value="50" class="slider" id="timeRange">
+        </div>
+        <div class="slidecontainer">
+            <label for="resolutionXRange">ResolutionX</label>
+            <input type="range" min="0" max="997" value="997" class="slider" id="resolutionXRange">
+        </div>
+        <div class="slidecontainer">
+            <label for="resolutionYRange">ResolutionY</label>
+            <input type="range" min="0" max="997" value="997" class="slider" id="resolutionYRange">
+        </div>
+        
+    </section>
+	<canvas id="myCanvas" resize></canvas>
+    <script type="text/javascript">
+        paper.install(window);
+        window.onload = async function() {
+            paper.setup('myCanvas');
+            var time = updateTime()
+
+            /*--LOAD WEAVES --*/
+            var weaveData = await getWeaves("weaves.json")
+            var weave = weaveData[document.getElementById("weaveInput").value]
+
+            /*-- SET RESOLUTION from default slider value--*/
+            var resolution = [document.getElementById('resolutionXRange').value/1000, document.getElementById('resolutionYRange').value/1000];
+            
+            /*--DIRECTION--*/
+            var direction = document.getElementById('directionInput').value
+
+            /*--SIDE--*/
+            side = document.getElementById('sideInput').value
+
+            /*--SET COORDINATES--*/
+		    var coordinates = [40.7276, -73.9287];
+
+            /*--SUNCALC--*/
+		    var SunCalc = require('suncalc');
+		    var solar = SunCalc.getTimes(time[1], coordinates[0], coordinates[1]);
+
+            /*--ALPHA - number between 0 and 1 based on how close the current time is to solar noon --*/
+            var alpha = getAlpha(SunCalc, time, coordinates)
+            var textAlpha = Math.round(alpha)
+
+            // get the current colors for the weave based on time alpha
+            var threadData = weave[side]
+            var mixed= updateThreads(threadData, alpha)
+            if(document.getElementById("tempInput").value == "true"){
+                mixed = getTemperature(SunCalc, time, coordinates, threadData)
+            }
+
+            // get punch card for twill
+            var punch = weave["punch"]
+
+            /*-- TILE DATA DIMENTIONS --*/
+            var tile = initTile(punch, view.bounds, mixed, resolution, direction)
+            
+            //tile = plotTraffic(tile, getTemperature(SunCalc, time, coordinates, threadData), 0.4)
+
+            /*-- TIME TEXT --*/
+            var timeText = new PointText(new Point(30, 100));
+            timeText.fillColor = new Color(textAlpha);
+            timeText.content = time[1];
+
+            
+            var rasterSource = updateRaster(textAlpha)
+            var logo = new Raster(rasterSource)
+            logo.position = new Point(120, 40)
+            logo.scale(0.09)
+            
+
+            // get now to dayspan ratio
+            document.getElementById("timeRange").value = ((time[1].getHours() / time[2].getHours()) * 100)
+
+            /*--timesliderSelect gets called when slider mode is on and the element on change event listener is triggered--*/
+            function timesliderSelect(){
+                // current slider value
+                time = updateTime()
+                time[1] = getSliderTime()
+
+                // update alpha
+                alpha = getAlpha(SunCalc, time, coordinates)
+
+                //update textAlpha
+                textAlpha = Math.round(alpha)
+
+                //update timeText
+                timeText.content = time[1]
+                timeText.fillColor = new Color(textAlpha);
+
+                //update raster
+                rasterSource = updateRaster(textAlpha)
+                logo.source = rasterSource
+                
+                if(document.getElementById("tempInput").value == "true"){
+                    mixed = getTemperature(SunCalc, time, coordinates, threadData)
+                }else {
+                    mixed = updateThreads(threadData, alpha)
+                }
+
+                //update tile
+                for(c = 0; c < tile.length; c++){
+		            for(h = 0; h < tile[c].length; h++){
+                    var [origin, destination] = gradientCoors(tile[c][h].direction, tile[c][h].rectangle)
+			        tile[c][h].path.fillColor = gradientFill(mixed[tile[c][h].direction], origin, destination)
+		            }
+	            }
+
+                
+            }
+
+            function getSliderTime(){
+                var sliderHour = (24 * document.getElementById("timeRange").value) / 100
+                var sliderTime
+                if(sliderHour==24){
+                    sliderTime = time[2]
+                } else if(sliderHour == 0){
+                    sliderTime = time[0]
+                } else{
+                    sliderTime = time[1]
+                    sliderTime.setHours(sliderHour)
+                }
+                return sliderTime
+            }
+
+            /*-- modeSelect gets called when the mode is changed--*/
+            function modeSelect(){
+                if (this.value == 'time'){
+                    //disable slider in time mode
+                    document.getElementById("timeRange").disabled = true
+
+                    //update time value
+                    time = updateTime()
+
+                    // update alpha
+                    alpha = getAlpha(SunCalc, time, coordinates)
+
+                    //update textAlpha
+                    textAlpha = Math.round(alpha)
+
+                    //update timeText
+                    timeText.content = time[1]
+                    timeText.fillColor = new Color(textAlpha);
+
+                    //update raster
+                    rasterSource = updateRaster(textAlpha)
+                    logo.source = rasterSource
+
+                    if(document.getElementById("tempInput").value == "true"){
+                        mixed = getTemperature(SunCalc, time, coordinates, threadData)
+                    }else {
+                        mixed = updateThreads(threadData, alpha)
+                    }
+
+                    //update tile
+                    for(var c = 0; c < tile.length; c++){
+		                for(var h = 0; h < tile[c].length; h++){
+                        var [origin, destination] = gradientCoors(tile[c][h].direction, tile[c][h].rectangle)
+			            tile[c][h].path.fillColor = gradientFill(mixed[tile[c][h].direction], origin, destination)
+		                }
+	                }
+
+                    }else{
+                        //enable time slider
+                        document.getElementById("timeRange").disabled = false
+                        timesliderSelect()
+
+                    }
+
+            }
+
+            function directionSelect(){
+                direction = document.getElementById('directionInput').value
+                //first delete all the rectangles in tile
+                while(tile.length){
+                    row = tile.pop()
+                    while (row.length){
+                        var cell = row.pop()
+                        cell.path.remove()
+                    }
+                }
+                tile = initTile(punch, view.bounds, mixed, resolution, direction)
+                logo.bringToFront()
+                timeText.bringToFront()
+            }
+
+            function resolutionSelect(){
+                //update resolution
+                resolution = [document.getElementById('resolutionXRange').value/1000, document.getElementById('resolutionYRange').value/1000];
+
+                //first delete all the rectangles in tile
+                while(tile.length){
+                    row = tile.pop()
+                    while (row.length){
+                        var cell = row.pop()
+                        cell.path.remove()
+                    }
+                }
+                
+                tile = initTile(punch, view.bounds, mixed, resolution, direction)
+                logo.bringToFront()
+                timeText.bringToFront()
+                
+            }
+
+            function sideSelect(){
+                //update side
+                side = document.getElementById('sideInput').value
+
+                //first delete all the rectangles in tile
+                while(tile.length){
+                    row = tile.pop()
+                    while (row.length){
+                        var cell = row.pop()
+                        cell.path.remove()
+                    }
+                }
+
+                if(document.getElementById("tempInput").value == "true"){
+                    mixed = getTemperature(SunCalc, time, coordinates, threadData)
+                }else {
+                    mixed = updateThreads(threadData, alpha)
+                }
+
+                tile = initTile(punch, view.bounds, mixed, resolution, direction)
+                logo.bringToFront()
+                timeText.bringToFront()
+            }
+
+            function tempSelect(){
+                if(this.value == "true"){
+                    mixed = getTemperature(SunCalc, time, coordinates, threadData)
+                } else {
+                    mixed = updateThreads(threadData, alpha)
+                }
+                
+                //update tile
+                for(var j = 0; j < tile.length; j++){
+		            for(var k = 0; k < tile[j].length; k++){
+                    var [origin, destination] = gradientCoors(tile[j][k].direction, tile[j][k].rectangle)
+			        tile[j][k].path.fillColor = gradientFill(mixed[tile[j][k].direction], origin, destination)
+		            }
+	            }
+
+            }
+
+            function weaveSelect(){
+                
+                weave = weaveData[this.value]
+
+                punch = weave["punch"]
+
+                threadData = weave[side]
+
+                //first delete all the rectangles in tile
+                while(tile.length){
+                    row = tile.pop()
+                    while (row.length){
+                        var cell = row.pop()
+                        cell.path.remove()
+                    }
+                }
+
+                if(document.getElementById("tempInput").value == "true"){
+                    mixed = getTemperature(SunCalc, time, coordinates, threadData)
+                }else {
+                    mixed = updateThreads(threadData, alpha)
+                }
+                console.log(mixed)
+
+                tile = initTile(punch, view.bounds, mixed, resolution, direction)
+                logo.bringToFront()
+                timeText.bringToFront()
+
+            }
+
+            /*--Mode change triggers modeSelect.
+                Slider change triggers timeSelect --*/
+            document.getElementById("timeRange").onchange = timesliderSelect
+            document.getElementById("modeInput").onchange = modeSelect
+            document.getElementById("directionInput").onchange = directionSelect
+            document.getElementById("resolutionXRange").onchange = resolutionSelect
+            document.getElementById("resolutionYRange").onchange = resolutionSelect
+            document.getElementById("sideInput").onchange = sideSelect
+            document.getElementById("tempInput").onchange = tempSelect
+            document.getElementById("weaveInput").onchange = weaveSelect
+
+
+
+
+        }
+    </script>
+</body>
+</html>

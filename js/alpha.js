@@ -35,18 +35,18 @@ function getAlphaFromTime(now, solar){
     return alpha
 }
 
-function getBodyFromMode(mode, solar){
-    var body = 0;
+function getBgColor(mode, solar){
+    var bg = 0;
     if (mode <= solar.dawn){
-        body = 0;
+        bg = 0;
     } else if (mode > solar.dawn && mode <= solar.solarNoon){
-        body = (mode  - solar.dawn) / (solar.solarNoon - solar.dawn);
+        bg = (mode  - solar.dawn) / (solar.solarNoon - solar.dawn);
     }else if (mode > solar.solarNoon && mode < solar.dusk){
-        body = 1 - ((mode - solar.solarNoon) / (solar.dusk - solar.solarNoon));
+        bg = 1 - ((mode - solar.solarNoon) / (solar.dusk - solar.solarNoon));
     } else {
-        body = 0;
+        bg = 0;
     }
-    return body
+    return bg
 }
 
 function getSolarColor(mode, solar, startOfDay, endOfDay){

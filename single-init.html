@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style type="text/css">
+	html,
+body {
+    height: 100%;
+}
+
+/* Scale canvas with resize attribute to full size */
+canvas[resize] {
+    width: 100%;
+    height: 100%;
+    background-color: "f8f8f8";
+}
+</style>
+<!-- Load the Paper.js library -->
+<script type="text/javascript" src="node_modules/paper/dist/paper-full.js"></script>
+<!-- Define inlined PaperScript associate it with myCanvas -->
+<script data-main="node_modules/suncalc/suncalc" src="node_modules/requirejs/require.js"></script>
+<script type="text/javascript" src="js/time.js"></script>
+<script type="text/javascript" src="js/color.js"></script>
+</head>
+<body>
+    <section id="controls">
+        <div id="inputelements">
+            <div class="row">
+                <span class="inputfield">
+                    <label for="modeInput">Mode</label>
+                    <select id="modeInput">
+                        <option value="slider">slider</option>
+                        <option value="time">time</option>
+                    </select>
+                </span>
+                <span class="inputfield">
+                    <label for="directionInput">Direction</label>
+                    <select id="directionInput">
+                        <option value="warp">horizontal</option>
+                        <option value="weft">vertical</option>
+                    </select>
+                </span>
+                
+            </div>
+        </div>
+        <div class="slidecontainer">
+            <label for="timeRange">Time of Day</label>
+            <input type="range" min="0" max="100" value="50" class="slider" id="timeRange">
+        </div>
+        <div class="slidecontainer">
+            <label for="resolutionRange">Resolution</label>
+            <input type="range" min="0" max="1" value="0.50" class="slider" id="resolutionRange">
+        </div>
+    </section>
+	<canvas id="myCanvas" resize></canvas>
+    <script type="text/javascript">
+        paper.install(window);
+        window.onload = function() {
+            paper.setup('myCanvas');
+            var time = updateTime()
+
+            /*--SET COORDINATES FOR TRAFFIC DENSITY--*/
+		    var coordinates = [40.7276, -73.9287];
+
+            /*--SUNCALC--*/
+		    var SunCalc = require('suncalc');
+		    var solar = SunCalc.getTimes(time[1], coordinates[0], coordinates[1]);
+
+            /*-- SOLAR POSITION- get solar position on page load based on current time --*/
+            var solarPosition = SunCalc.getPosition(time[1], coordinates[0], coordinates[1]).altitude
+
+            /*-- SOLAR NOON POSITION - get position of the sun at solar noon based on time --*/
+            var noonPosition = SunCalc.getPosition(solar.solarNoon, coordinates[0], coordinates[1]).altitude
+
+            /*--ALPHA - number between 0 and 1 based on how close the current time is to solar noon --*/
+            var alpha = getAlpha(solarPosition, noonPosition)
+
+            /*-- COLORS --*/
+            var rgba = [119/255, 136/255, 153/255, alpha]
+
+            var center = view.center
+
+            /*-- TILE DATA DIMENTIONS --*/
+            var direction = document.getElementById('directionInput').value
+            var frame_size = new Size(view.bounds.width, view.bounds.height)
+            var frame_top_left = new Point(view.bounds.x, view.bounds.y)
+            var path = new Path.Rectangle(frame_top_left, frame_size)
+            path.fillColor = setGradient( direction, frame_top_left, frame_size, rgba)
+
+            var timeText = new PointText(new Point(30, 100));
+            timeText.fillColor = new Color(Math.round(alpha));
+            timeText.content = time[1];
+
+            
+            var rasterSource = updateRaster(alpha)
+            var logo = new Raster(rasterSource)
+            logo.position = new Point(120, 40)
+            logo.scale(0.09)
+            
+
+            // get now to dayspan ratio
+            document.getElementById("timeRange").value = ((time[1].getHours() / time[2].getHours()) * 100)
+
+            /*--sliderSelect gets called when slider mode is on and the element on change event listener is triggered--*/
+            function sliderSelect(){
+                // current slider value
+                sliderval = getSliderTime()
+                // update solarPosition
+                solarPosition = SunCalc.getPosition(sliderval, coordinates[0], coordinates[1]).altitude
+
+                // update alpha
+                alpha = getAlpha(solarPosition, noonPosition)
+                // update rgba
+                rgba = [119/255, 136/255, 153/255, alpha]
+
+                //update timeText
+                timeText.content = sliderval
+                timeText.fillColor = new Color(Math.round(alpha));
+
+                //update path
+                path.fillColor = setGradient( direction, frame_top_left, frame_size, rgba)
+
+                //update raster
+                rasterSource = updateRaster(alpha)
+                logo.source = rasterSource
+            }
+
+            function getSliderTime(){
+                var sliderHour = (24 * document.getElementById("timeRange").value) / 100
+                var sliderTime
+                if(sliderHour==24){
+                    sliderTime = time[2]
+                } else if(sliderHour == 0){
+                    sliderTime = time[0]
+                } else{
+                    sliderTime = time[1]
+                    sliderTime.setHours(sliderHour)
+                }
+                return sliderTime
+            }
+
+            /*-- modeSelect gets called when the mode is changed--*/
+            function modeSelect(){
+                if (this.value == 'time'){
+                    //disable slider in time mode
+                    document.getElementById("timeRange").disabled = true
+
+                    //update time value
+                    time = updateTime()
+
+                    //update solar position
+                    solarPosition = SunCalc.getPosition(time[1], coordinates[0], coordinates[1]).altitude
+
+                    //update alpha based on new time value
+                    alpha = getAlpha(solarPosition, noonPosition)
+
+                    // update rgba
+                    rgba = [119/255, 136/255, 153/255, alpha]
+
+                    // update time text
+                    timeText.content = time[1]
+                    timeText.fillColor = new Color(alpha)
+
+                    // update path fill color
+                    path.fillColor = setGradient( direction, frame_top_left, frame_size, rgba)
+
+                    //update raster
+                    rasterSource = updateRaster(alpha)
+                    logo.source = rasterSource
+
+                }else{
+                    //update time value
+                    time = updateTime()
+
+                    //enable time slider
+                    document.getElementById("timeRange").disabled = false
+
+                    //set slider to current time
+                    document.getElementById("timeRange").value = ((time[1].getHours() / time[2].getHours()) * 100)
+
+                    //update solar position
+                    solarPosition = SunCalc.getPosition(time[1], coordinates[0], coordinates[1]).altitude
+
+                    //update alpha
+                    alpha = getAlpha(solarPosition, noonPosition)
+
+                    // update rgba
+                    rgba = [119/255, 136/255, 153/255, alpha]
+                    
+                    //update time text
+                    timeText.content = getSliderTime()
+                    timeText.fillColor = new Color(alpha)
+
+                    //update path
+                    path.fillColor = setGradient(direction, frame_top_left, frame_size, rgba)
+
+                    //update raster
+                    rasterSource = updateRaster(alpha)
+                    logo.source = rasterSource
+                    
+                }
+
+            }
+
+            function directionSelect(){
+                direction = document.getElementById('directionInput').value
+                path.fillColor = setGradient(direction, frame_top_left, frame_size, rgba)
+            }
+
+            function updateRaster(alpha){
+                
+                if (Math.round(alpha)){
+                    var rasterSource = 'img/picker_large_light.png'
+                } else {
+                    var rasterSource = 'img/picker_large_dark.png'
+                }
+                return rasterSource
+            }
+
+            /*--Mode change triggers modeSelect.
+                Slider change triggers timeSelect --*/
+            document.getElementById("timeRange").onchange = sliderSelect
+            document.getElementById("modeInput").onchange = modeSelect
+            document.getElementById("directionInput").onchange = directionSelect
+
+
+
+
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style type="text/css">
+	html,
+body {
+    height: 100%;
+}
+
+/* Scale canvas with resize attribute to full size */
+canvas[resize] {
+    width: 100%;
+    height: 100%;
+    background-color: "f8f8f8";
+}
+</style>
+<!-- Load the Paper.js library -->
+<script type="text/javascript" src="node_modules/paper/dist/paper-full.js"></script>
+<!-- Define inlined PaperScript associate it with myCanvas -->
+<script data-main="node_modules/suncalc/suncalc" src="node_modules/requirejs/require.js"></script>
+<script type="text/javascript" src="js/time.js"></script>
+</head>
+<body>
+    <section id="controls">
+        <div id="inputelements">
+            <div class="row">
+                <span class="inputfield">
+                    <label for="modeInput">Mode</label>
+                    <select id="modeInput">
+                        <option value="slider">slider</option>
+                        <option value="time">time</option>
+                    </select>
+                </span>
+            </div>
+        </div>
+        <div class="slidecontainer">
+            <input type="range" min="0" max="100" value="50" class="slider" id="timeRange">
+        </div>
+    </section>
+	<canvas id="myCanvas" resize></canvas>
+    <script type="text/javascript">
+        paper.install(window);
+        window.onload = function() {
+            paper.setup('myCanvas');
+            var time = updateTime()
+            var text = new PointText(new Point(30, 30));
+            text.fillColor = 'black';
+            text.content = time[1];
+            // get now to dayspan ratio
+            document.getElementById("timeRange").value = ((time[1].getHours() / time[2].getHours()) * 100)
+
+            function timeSelect(){
+                text.content = getSliderTime() 
+            }
+
+            function getSliderTime(){
+                var sliderHour = (24 * document.getElementById("timeRange").value) / 100
+                var sliderTime
+                if(sliderHour==24){
+                    sliderTime = time[2]
+                } else if(sliderHour == 0){
+                    sliderTime = time[0]
+                } else{
+                    sliderTime = time[1]
+                    sliderTime.setHours(sliderHour)
+                }
+                return sliderTime
+            }
+
+            function modeSelect(){
+                if (this.value == 'time'){
+                    document.getElementById("timeRange").disabled = true
+                    time = updateTime()
+                    text.content = time[1]
+                }else{
+                    document.getElementById("timeRange").disabled = false
+                    document.getElementById("timeRange").value = ((time[1].getHours() / time[2].getHours()) * 100)
+                    text.content = getSliderTime()
+                    
+                }
+
+            }
+
+            document.getElementById("timeRange").onchange = timeSelect
+            document.getElementById("modeInput").onchange = modeSelect
+
+
+
+
+        }
+    </script>
+</body>
+</html>
