@@ -67,11 +67,14 @@ canvas[resize] {
                 <span class="inputfield">
                     <label for="weaveInput">Weave</label>
                     <select id="weaveInput">
+                        <option value="pink-yellow">Pink Yellow</option>
+                        <option value="blue-yellow">Blue Yellow</option>
                         <option value="diamond">Diamond</option>
                         <option value="denim">Denim</option>
                         <option value="reds">Reds</option>
                         <option value="greens">Greens</option>
                         <option value="blues">Blues</option>
+                        <option value="red-green">Red Green</option>
 
                     </select>
                 </span>
@@ -80,7 +83,7 @@ canvas[resize] {
         </div>
         <div class="slidecontainer">
             <label for="densityRange">Density</label>
-            <input type="range" min="0" max="100" value="50" class="slider" id="densityRange">
+            <input type="range" min="0" max="100" value="0" class="slider" id="densityRange">
         </div>
         <div class="slidecontainer">
             <label for="timeRange">Time of Day</label>
@@ -88,11 +91,11 @@ canvas[resize] {
         </div>
         <div class="slidecontainer">
             <label for="resolutionXRange">ResolutionX</label>
-            <input type="range" min="0" max="997" value="996" class="slider" id="resolutionXRange">
+            <input type="range" min="0" max="997" value="995" class="slider" id="resolutionXRange">
         </div>
         <div class="slidecontainer">
             <label for="resolutionYRange">ResolutionY</label>
-            <input type="range" min="0" max="997" value="996" class="slider" id="resolutionYRange">
+            <input type="range" min="0" max="997" value="990" class="slider" id="resolutionYRange">
         </div>
         
     </section>
@@ -294,6 +297,7 @@ canvas[resize] {
                     }
                 }
                 tile = initTile(punch, view.bounds, mixed, resolution, direction)
+                tile = plotTraffic(tile, getTemperature(SunCalc, time, coordinates, threadData), traffic_density)
                 logo.bringToFront()
                 timeText.bringToFront()
             }
@@ -321,6 +325,10 @@ canvas[resize] {
             function sideSelect(){
                 //update side
                 side = document.getElementById('sideInput').value
+
+                punch = weave["punch"]
+
+                threadData = weave[side]
 
                 //first delete all the rectangles in tile
                 while(tile.length){
